@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { RegistrationData, FormErrors, CompanyInfo, UserInfo } from '../types/registration';
 import { validateCompanyInfo, validateUserInfo, validateRegistration } from '../utils/validation';
+import { API_ENDPOINTS } from '../config/api';
 
 const initialCompanyInfo: CompanyInfo = {
   companyName: '',
@@ -115,7 +116,6 @@ export const useRegistration = () => {
     setIsSubmitting(true);
     
     try {
-      // Here you would typically send the data to your Go backend API
       const formData = new FormData();
       
       // Add company info
@@ -132,22 +132,23 @@ export const useRegistration = () => {
       
       formData.append('termsAccepted', data.termsAccepted.toString());
 
-      // Example API call to Go backend
-      // const response = await fetch('/api/register', {
-      //   method: 'POST',
-      //   body: formData,
-      // });
+      const response = await fetch(API_ENDPOINTS.REGISTER, {
+        method: 'POST',
+        body: formData,
+      });
       
-      // if (!response.ok) {
-      //   throw new Error('Registration failed');
-      // }
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
+      }
+
+      const result = await response.json();
+      console.log('Registration successful:', result);
       
       return true;
     } catch (error) {
       console.error('Registration error:', error);
+      setErrors({ submit: error instanceof Error ? error.message : 'Registration failed' });
       return false;
     } finally {
       setIsSubmitting(false);
