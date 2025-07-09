@@ -6,7 +6,7 @@ import { UserInfoStep } from './components/UserInfoStep';
 import { DocumentsStep } from './components/DocumentsStep';
 import { ReviewStep } from './components/ReviewStep';
 import { LoginForm } from './components/LoginForm';
-import { Dashboard } from './components/Dashboard';
+import { AdminDashboard } from './components/AdminDashboard';
 import { useRegistration } from './hooks/useRegistration';
 import { authService } from './services/auth';
 
@@ -140,7 +140,7 @@ function App() {
   }
 
   if (currentView === 'dashboard') {
-    return <Dashboard onLogout={handleLogout} />;
+    return <AdminDashboard onLogout={handleLogout} />;
   }
 
   return (
