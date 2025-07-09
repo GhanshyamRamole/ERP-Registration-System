@@ -1,11 +1,59 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+
+# Logs
 *.log
 *.tmp
 *.temp
-.git
-.gitignore
-README.md
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+main
+erp-backend
+*.exe
+
+# Docker files
 Dockerfile
 docker-compose.yml
-.env
+docker-compose.*.yml
+
+# Uploads (will be created at runtime)
 uploads/*
 !uploads/.gitkeep
+
+# Test files
+*_test.go
+test/
+coverage.out
+
+# Development scripts (keep essential ones)
+scripts/reset-db.sh
+
+# Go module cache
+go.sum.backup
