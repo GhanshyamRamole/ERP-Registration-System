@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Building2, ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
+import { Building2, ArrowLeft, ArrowRight, CheckCircle, LogIn } from 'lucide-react';
 import { ProgressIndicator } from './components/ProgressIndicator';
 import { CompanyInfoStep } from './components/CompanyInfoStep';
 import { UserInfoStep } from './components/UserInfoStep';
 import { DocumentsStep } from './components/DocumentsStep';
 import { ReviewStep } from './components/ReviewStep';
+import { LoginForm } from './components/LoginForm';
+import { Dashboard } from './components/Dashboard';
 import { useRegistration } from './hooks/useRegistration';
+import { authService } from './services/auth';
 
 const steps = [
   'Company Information',
@@ -15,6 +18,9 @@ const steps = [
 ];
 
 function App() {
+  const [currentView, setCurrentView] = useState<'register' | 'login' | 'dashboard'>(() => {
+    return authService.isAuthenticated() ? 'dashboard' : 'register';
+  });
   const [isComplete, setIsComplete] = useState(false);
   const {
     currentStep,
@@ -89,6 +95,22 @@ function App() {
     return true;
   };
 
+  const handleLoginSuccess = () => {
+    setCurrentView('dashboard');
+  };
+
+  const handleLogout = () => {
+    setCurrentView('login');
+  };
+
+  const switchToLogin = () => {
+    setCurrentView('login');
+  };
+
+  const switchToRegister = () => {
+    setCurrentView('register');
+  };
+
   if (isComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -103,7 +125,7 @@ function App() {
             Welcome to your new ERP system. You should receive a confirmation email shortly with next steps.
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => setCurrentView('dashboard')}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
           >
             Start Using ERP
@@ -111,6 +133,14 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  if (currentView === 'login') {
+    return <LoginForm onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  if (currentView === 'dashboard') {
+    return <Dashboard onLogout={handleLogout} />;
   }
 
   return (
@@ -126,6 +156,15 @@ function App() {
             <p className="text-gray-600">
               Set up your enterprise resource planning system in just a few steps
             </p>
+            <div className="mt-4">
+              <button
+                onClick={switchToLogin}
+                className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Already have an account? Sign in</span>
+              </button>
+            </div>
           </div>
 
           {/* Progress Indicator */}
@@ -184,6 +223,12 @@ function App() {
           {errors.terms && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm">{errors.terms}</p>
+            </div>
+          )}
+
+          {errors.submit && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{errors.submit}</p>
             </div>
           )}
         </div>

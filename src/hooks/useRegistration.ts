@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { RegistrationData, FormErrors, CompanyInfo, UserInfo } from '../types/registration';
 import { validateCompanyInfo, validateUserInfo, validateRegistration } from '../utils/validation';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS, handleApiError } from '../config/api';
 
 const initialCompanyInfo: CompanyInfo = {
   companyName: '',
@@ -118,12 +118,29 @@ export const useRegistration = () => {
     try {
       const formData = new FormData();
       
-      // Add company info
-      formData.append('company', JSON.stringify(data.companyInfo));
+      // Add company info as individual fields (matching backend expectations)
+      formData.append('companyName', data.companyInfo.companyName);
+      formData.append('industry', data.companyInfo.industry);
+      formData.append('companySize', data.companyInfo.companySize);
+      formData.append('website', data.companyInfo.website);
+      formData.append('taxId', data.companyInfo.taxId);
+      formData.append('phone', data.companyInfo.phone);
+      formData.append('street', data.companyInfo.address.street);
+      formData.append('city', data.companyInfo.address.city);
+      formData.append('state', data.companyInfo.address.state);
+      formData.append('zipCode', data.companyInfo.address.zipCode);
+      formData.append('country', data.companyInfo.address.country);
       
-      // Add user info (without password confirmation)
+      // Add user info as individual fields (without password confirmation)
       const { confirmPassword, ...userInfo } = data.userInfo;
-      formData.append('user', JSON.stringify(userInfo));
+      formData.append('firstName', userInfo.firstName);
+      formData.append('lastName', userInfo.lastName);
+      formData.append('email', userInfo.email);
+      formData.append('password', userInfo.password);
+      formData.append('role', userInfo.role);
+      formData.append('department', userInfo.department);
+      formData.append('jobTitle', userInfo.jobTitle);
+      formData.append('userPhone', userInfo.phone);
       
       // Add documents
       data.documents.forEach((file, index) => {
@@ -137,13 +154,16 @@ export const useRegistration = () => {
         body: formData,
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Registration failed');
-      }
+      await handleApiError(response);
 
       const result = await response.json();
       console.log('Registration successful:', result);
+      
+      // Store the token if provided
+      if (result.token) {
+        localStorage.setItem('authToken', result.token);
+        localStorage.setItem('user', JSON.stringify(result.user));
+      }
       
       return true;
     } catch (error) {
