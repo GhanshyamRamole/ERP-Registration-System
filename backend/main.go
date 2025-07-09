@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"erp-registration-backend/internal/config"
 	"erp-registration-backend/internal/database"
@@ -30,9 +31,16 @@ func main() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Auto-migrate models
-	if err := db.AutoMigrate(&models.Company{}, &models.User{}, &models.Document{}); err != nil {
+	// Run database migrations
+	if err := database.RunMigrations(db); err != nil {
 		log.Fatal("Failed to migrate database:", err)
+	}
+
+	// Seed database in development mode
+	if os.Getenv("APP_ENV") == "development" {
+		if err := database.SeedDatabase(db); err != nil {
+			log.Printf("Warning: Failed to seed database: %v", err)
+		}
 	}
 
 	// Initialize handlers
@@ -43,7 +51,11 @@ func main() {
 
 	// CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "https://teal-begonia-693134.netlify.app"},
+		AllowOrigins:     []string{
+			"http://localhost:5173", 
+			"http://localhost:3000",
+			"https://teal-begonia-693134.netlify.app",
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -52,7 +64,11 @@ func main() {
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		c.JSON(200, gin.H{
+			"status": "ok",
+			"service": "ERP Registration Backend",
+			"version": "1.0.0",
+		})
 	})
 
 	// API routes
@@ -77,8 +93,18 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("Server starting on port %s", port)
+	log.Printf("🚀 Server starting on port %s", port)
+	log.Printf("📊 Database: %s", cfg.DatabaseURL)
+	log.Printf("🌍 Environment: %s", getEnv("APP_ENV", "production"))
+	
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
