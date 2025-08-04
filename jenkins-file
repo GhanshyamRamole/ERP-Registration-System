@@ -1,0 +1,122 @@
+pipeline {
+    agent any
+    
+    tools {
+        nodejs 'NodeJS-18'
+    }
+    
+    environment {
+        AWS_REGION = 'us-east-1'
+        ECR_REPOSITORY = 'k8s-hub'
+        EKS_CLUSTER = 'k8s-hub-cluster'
+        SONAR_PROJECT_KEY = 'k8s-hub'
+    }
+    
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/GhanshyamRamole/k8s-Hub-app.git'
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                dir('Application') {
+                    sh 'npm install'
+                }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        sonar-scanner \
+                        -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+                        -Dsonar.sources=./Application \
+                        -Dsonar.host.url=http://localhost:9000
+                    '''
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        
+        stage('Trivy Security Scan') {
+            steps {
+                sh 'trivy fs --format table -o trivy-report.html .'
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: '.',
+                    reportFiles: 'trivy-report.html',
+                    reportName: 'Trivy Security Report'
+                ])
+            }
+        }
+        
+        stage('Docker Build') {
+            steps {
+                script {
+                    def image = docker.build("${ECR_REPOSITORY}:${BUILD_NUMBER}")
+                }
+            }
+        }
+        
+        stage('Push to ECR') {
+            steps {
+                script {
+                    sh '''
+                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                        docker tag $ECR_REPOSITORY:$BUILD_NUMBER $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$BUILD_NUMBER
+                        docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$BUILD_NUMBER
+                    '''
+                }
+            }
+        }
+        
+        stage('Update Kubernetes Manifests') {
+            steps {
+                script {
+                    sh '''
+                        sed -i "s|image: .*|image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$BUILD_NUMBER|g" K8s-files/deployment.yml
+                        git add K8s-files/deployment.yml
+                        git commit -m "Update image tag to $BUILD_NUMBER"
+                        git push origin main
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy to EKS') {
+            steps {
+                script {
+                    sh '''
+                        aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER
+                        kubectl apply -f K8s-files/
+                        kubectl rollout status deployment/k8s-hub-deployment
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
