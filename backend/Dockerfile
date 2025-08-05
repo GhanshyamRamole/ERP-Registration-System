@@ -8,8 +8,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Copy go mod and sum files first for better caching
 COPY go.mod go.sum ./
 
-# Clear module cache and download dependencies
-RUN go clean -modcache
+# Download dependencies
 RUN go mod download
 RUN go mod verify
 
